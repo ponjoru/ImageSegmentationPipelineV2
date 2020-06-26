@@ -80,7 +80,8 @@ def hex_to_rgb(value):
 def plot_confusion_matrix(matrix,
                           normalize=False,
                           title=None,
-                          cmap=plt.cm.Blues):
+                          cmap=plt.cm.Blues,
+                          show=True):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
@@ -95,7 +96,7 @@ def plot_confusion_matrix(matrix,
     if normalize:
         matrix = matrix.astype('float') / matrix.sum(axis=1)[:, np.newaxis]
 
-    fig, ax = plt.subplots()
+    fig, ax = create_canvas(1, 1, a=1, b=1, image_size=(2048, 2048))
     im = ax.imshow(matrix, interpolation='nearest', cmap=cmap)
     ax.figure.colorbar(im, ax=ax)
     ax.set(title=title, ylabel='True label', xlabel='Predicted label')
@@ -105,15 +106,17 @@ def plot_confusion_matrix(matrix,
              rotation_mode="anchor")
 
     # Loop over data dimensions and create text annotations.
-    fmt = '.3f' if normalize else '.0f'
+    fmt = '.2f' if normalize else '.0f'
     thresh = matrix.max() / 2.
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
             ax.text(j, i, format(matrix[i, j], fmt),
-                    ha="center", va="center",
+                    ha="center", va="center", fontsize=11,
                     color="white" if matrix[i, j] > thresh else "black")
     fig.tight_layout()
-    return ax
+    if show:
+        plt.show()
+    return fig
 
 
 def _standard_encoding_mask_to_rgb(mask, threshold=None):

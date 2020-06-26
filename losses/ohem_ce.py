@@ -12,12 +12,13 @@ class OhemCELoss(nn.Module):
     :param class_weight: positive class weight (default: None)
     :param reduction: str: 'mean' or 'sum'. (default: 'mean')
     """
-    def __init__(self, threshold, n_min, cuda=True, class_weight=None, reduction="mean"):
+    def __init__(self, threshold, n_min, ignore_index=255, cuda=True, class_weight=None, reduction="mean"):
         super(OhemCELoss, self).__init__()
         self.threshold = -torch.log(torch.tensor(threshold, dtype=torch.float))
         if cuda:
             self.threshold = self.threshold.cuda()
         self.n_min = n_min
+        self.ignore_index = ignore_index
         self.class_weight = class_weight
         self.reduction = reduction
 
@@ -27,7 +28,7 @@ class OhemCELoss(nn.Module):
         :param target: Tensor of shape (B,H,W)
         :return: scalar
         """
-        loss = F.binary_ohem_crossentropy_loss(input, target, self.threshold, self.n_min, self.class_weight)
+        loss = F.ohem_crossentropy_loss(input, target, self.threshold, self.n_min, self.ignore_index, self.class_weight)
         if self.reduction == "mean":
             return loss.mean()
         if self.reduction == "sum":

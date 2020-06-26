@@ -8,17 +8,15 @@ import losses.functional as F
 class SoftDiceLoss(nn.Module):
     """
     Soft dice loss function (a.k.a f1 score loss, 1 - 2*|X^Y| / |X|+|Y|) (https://arxiv.org/abs/1707.03237)
-    :param classes: classes to validate on (others will be ignored) (default: None)
     :param from_logits: whether input is logit(between -\infty and +\infty) or
                         class probabilities at each prediction (between 0 and 1) (default: True)
     :param reduction: str - reduction mode, one of 'mean', 'sum', 'none', (default: 'mean') (if 'none' returns per class
                       dice loss)
     """
-    def __init__(self, classes: list = None, from_logits=True, reduction='mean'):
+    def __init__(self, from_logits=True, reduction='mean'):
 
         super(SoftDiceLoss, self).__init__()
         self.reduction = reduction
-        self.classes = classes
         self.from_logits = from_logits
 
     def forward(self, input: torch.Tensor, target: torch.Tensor):

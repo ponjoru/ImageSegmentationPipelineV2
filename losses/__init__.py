@@ -4,7 +4,7 @@ from losses.jaccard import *
 from losses.dice import *
 from losses.lovasz import *
 from losses.focal import *
-from losses.ohem_bce import *
+from losses.ohem_ce import *
 
 
 if __name__ == "__main__":

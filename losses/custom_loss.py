@@ -1,4 +1,4 @@
-from losses import SoftJaccardLoss, SoftDiceLoss
+from losses import SoftJaccardLoss, SoftDiceLoss, OhemCELoss
 import torch.nn as nn
 import torch
 
@@ -7,10 +7,12 @@ class CustomLoss:
     """
     Custom loss function.Implement your custom loss here
     """
-    def __init__(self, ignore_index, reduction='mean', delay=None):
+    def __init__(self, input_size, ignore_index, reduction='mean', delay=None):
+        b, c, h, w = input_size
         self.jaccard_loss = SoftJaccardLoss()
         self.dice_loss = SoftDiceLoss()
-        self.ce_loss = nn.CrossEntropyLoss(ignore_index=ignore_index, reduction=reduction)
+        # self.ce_loss = nn.CrossEntropyLoss(ignore_index=ignore_index, reduction=reduction)
+        self.ce_loss = OhemCELoss(threshold=0.7, n_min=b*h*w // 16, ignore_index=ignore_index, reduction=reduction)
         self.delay = delay
 
     def train_loss(self, input: torch.Tensor, target: torch.Tensor, epoch: int):
@@ -31,7 +33,7 @@ class CustomLoss:
         if self.delay and epoch > self.delay:
             loss_2 = self.jaccard_loss(input, target)
             loss_3 = self.dice_loss(input, target)
-            loss = loss_1 * 0.8 + loss_2 + loss_3
+            loss = 0.8 * loss_1 + loss_2 + loss_3
         else:
             loss = loss_1
         return loss

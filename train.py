@@ -56,6 +56,13 @@ class Trainer(object):
         if self.settings['resume']:
             self.resume_checkpoint(self.settings['resume'])
 
+    def activation(self, output):
+        if self.nclass == 1:
+            output = torch.sigmoid(output)
+        else:
+            output = torch.softmax(output, dim=1)
+        return output
+
     def training(self, epoch: int):
         """
         Training loop for a certain epoch
@@ -98,11 +105,10 @@ class Trainer(object):
         self.model.eval()
         tbar = tqdm(self.val_loader, desc='valid', file=sys.stdout)
         test_loss = 0.0
-
-        for i, sample in enumerate(tbar):
-            img, target = sample['image'], sample['label']
-            if self.cuda:
-                img, target = img.cuda(), target.cuda()
+        with torch.no_grad():
+            for i, sample in enumerate(tbar):
+                if self.cuda:
+                    img, target = img.cuda(), target.cuda()
 
             with torch.no_grad():
                 output = self.model(img)

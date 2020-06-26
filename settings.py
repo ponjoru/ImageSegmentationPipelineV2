@@ -15,8 +15,8 @@ def define_settings():
         'optimizer_params':     None,
         'lr_scheduler':         None,  # 'multistep', 'exponential', 'reduceOnPlateau', 'cyclic'
         'scheduler_params':     None,
-        'metrics':              ['hard_iou', 'hard_dice', 'soft_iou', 'soft_dice'],
-        'metric_to_watch':      'hard_iou',
+        'metrics':              ['iou', 'dice', 'fwiou'],
+        'metric_to_watch':      'iou',
         'log_dilate':           1,
         'inputs_to_watch':      ['frankfurt_000001_013016_leftImg8bit.png', 'frankfurt_000001_029086_leftImg8bit.png',
                                  'frankfurt_000001_042733_leftImg8bit.png', 'frankfurt_000001_067735_leftImg8bit.png',

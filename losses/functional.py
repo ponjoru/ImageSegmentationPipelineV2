@@ -64,7 +64,7 @@ def soft_jaccard_index(input: torch.Tensor, target: torch.Tensor, smooth=1e-8):
 
 def focal_loss(input: torch.Tensor, target: torch.Tensor, threshold=0.5, alpha=None, gamma=2, class_weight=None):
     """
-    Focal binary segmentation loss (https://arxiv.org/abs/1708.02002)
+    Focal segmentation loss (https://arxiv.org/abs/1708.02002)
     :param input: Tensor(B,1,H,W)
     :param target: Tensor(B,H,W)
     :param threshold: float threshold (default: 0.5)
@@ -72,9 +72,9 @@ def focal_loss(input: torch.Tensor, target: torch.Tensor, threshold=0.5, alpha=N
     :param gamma: int, gamma parameter of loss function (default: 2)
     :return: scalar
     """
-    input = input.squeeze(dim=1)
     b, c, w, h = input.size()
     if c == 1:
+        input = input.squeeze(dim=1)
         logpt = -F.binary_cross_entropy_with_logits(input, target, reduction="none", pos_weight=class_weight)
     else:
         logpt = -F.cross_entropy(input, target, reduction="none", weight=class_weight)
@@ -94,13 +94,13 @@ def focal_loss(input: torch.Tensor, target: torch.Tensor, threshold=0.5, alpha=N
     return loss
 
 
-def binary_ohem_crossentropy_loss(input: torch.Tensor, target: torch.Tensor, threshold, n_min, class_weight=None):
-    input = input.squeeze(dim=1)
+def ohem_crossentropy_loss(input: torch.Tensor, target: torch.Tensor, threshold, n_min, ignore_index, class_weight=None):
     b, c, w, h = input.size()
     if c == 1:
-        loss = F.binary_cross_entropy_with_logits(input.float(), target, reduction="none", pos_weight=class_weight).view(-1)
+        target = target.unsqueeze(dim=1)
+        loss = F.binary_cross_entropy_with_logits(input, target, reduction="none", pos_weight=class_weight).view(-1)
     else:
-        loss = F.cross_entropy(input, target, reduction="none", weight=class_weight)
+        loss = F.cross_entropy(input, target, reduction="none", weight=class_weight, ignore_index=ignore_index).view(-1)
     loss, _ = torch.sort(loss, descending=True)
 
     if loss[n_min] > threshold:
@@ -109,3 +109,15 @@ def binary_ohem_crossentropy_loss(input: torch.Tensor, target: torch.Tensor, thr
         loss = loss[:n_min]
 
     return loss
+
+
+if __name__ == '__main__':
+    # input = torch.randn((4, 19, 1024, 2048))
+    # target = (torch.randn((4, 1024, 2048)).abs().long())
+
+    input = torch.sigmoid(torch.randn((4, 1, 1024, 2048)))
+    target = torch.sigmoid(torch.randn((4, 1024, 2048)))
+
+    l = ohem_crossentropy_loss(input, target, threshold=0.7, n_min=4 * 1024 * 2048 // 16)
+    l1 = focal_loss(input, target)
+    k = 5
