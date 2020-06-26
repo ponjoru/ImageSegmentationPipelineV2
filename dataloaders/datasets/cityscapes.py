@@ -107,6 +107,8 @@ class CityscapesSegmentation(ISDatasetTemplate):
         return len(self.files[self.split])
 
     def __getitem__(self, index):
+        transform = self.transformations[self.split]
+
         lbl_path = self.files[self.split][index].rstrip()
         img_path = lbl_path.replace('gtFine_labelIds', 'leftImg8bit')
         img_path = img_path.replace('gtFine', 'leftImg8bit')
@@ -122,74 +124,70 @@ class CityscapesSegmentation(ISDatasetTemplate):
 
     def transform_tr(self, sample: dict):
         sample_transforms = transforms.Compose([
-            ctr.Resize(self.settings['base_size']),
-            ctr.Crop(**self.settings['crop_params']),
-            ctr.Resize(self.settings['target_size']),
+            ctr.RandomCrop(size=self.settings['rnd_crop_size']),
             ctr.RandomHorizontalFlip(p=0.5),
             ctr.ToTensor(),
-            ctr.Normalize(mean=(0,), std=(1,), apply_to=['image']),
+            ctr.Normalize(**self.settings['normalize_params'], apply_to=['image']),
             ctr.Squeeze(apply_to=['label']),
         ])
         return sample_transforms(sample)
 
     def transform_val(self, sample: dict):
         sample_transforms = transforms.Compose([
-            ctr.Resize(self.settings['base_size']),
-            ctr.Crop(**self.settings['crop_params']),
-            ctr.Resize(self.settings['target_size']),
             ctr.ToTensor(),
-            ctr.Normalize(mean=(0,), std=(1,), apply_to=['image']),
+            ctr.Normalize(**self.settings['normalize_params'], apply_to=['image']),
             ctr.Squeeze(apply_to=['label']),
         ])
         return sample_transforms(sample)
 
     def transform_ts(self, sample: dict):
         sample_transforms = transforms.Compose([
-            ctr.Resize(self.settings['base_size']),
-            ctr.Crop(**self.settings['crop_params']),
-            ctr.Resize(self.settings['target_size']),
             ctr.ToTensor(),
-            ctr.Normalize(mean=(0,), std=(1,), apply_to=['image']),
+            ctr.Normalize(**self.settings['normalize_params'], apply_to=['image']),
             ctr.Squeeze(apply_to=['label']),
         ])
         return sample_transforms(sample)
 
 
 if __name__ == '__main__':
+    import numpy as np
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
-    from utils.create_canvas import create_canvas
+    from utils.utils_test import create_canvas
+    from dataloaders.custom_transforms import denormalize_image
 
-    common_settings = {
+    settings = {
         'base_size': (1024, 2048),
-        'crop_size': (1024, 2048),
-        'crop_mul': {'left': 0, 'right': 1, 'upper': 0, 'lower': 1},
-    }
-
-    special_settings = {
-        # 'valid_classes': [*range(15), *range(17, 25)],
-        'valid_classes': None,  # [7, 24, 26],
+        'target_size': (1024, 2048),
+        'rnd_crop_size': (768, 768),
+        'normalize_params': {'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225]},
+        'valid_classes': None,  # [7, 24, 26], [*range(15), *range(17, 25)],
         'segmentation_mode': 'multiclass',
         'binary_color': (255, 255, 0),
         'ignore_index': 255,
     }
-    settings = {**common_settings, **special_settings}
+
     cityscapes_train = CityscapesSegmentation(settings, split='train')
 
     dataloader = DataLoader(cityscapes_train, batch_size=2, shuffle=True, num_workers=0)
 
     for ii, sample in enumerate(dataloader):
+        sample["image"] = denormalize_image(sample["image"], **settings['normalize_params'])
         for jj in range(sample["image"].size()[0]):
-            img = sample['image'].numpy()
+            img = sample["image"].numpy()
             gt = sample['label'].numpy()
             title = sample['id']
             target = one_hot_encode(gt, num_classes=cityscapes_train.num_classes)
-            fig, (ax1, ax2, ax3) = create_canvas(3,1,1,1, (2048, 1024))
+            fig, ((ax1, ax2), (ax3, ax4)) = create_canvas(2,2, 2,2, (768, 768))
             cityscapes_train.plotter.plot_inference(ax1, img[jj], target[jj], alpha=1)
+            ax1.set_title('one-hot encoded mask plot')
             cityscapes_train.plotter.plot_ground_truth(ax2, img[jj], gt[jj], alpha=1)
+            ax2.set_title('default mask plot')
             cityscapes_train.plotter.plot_ground_truth(ax3, img[jj], gt[jj], alpha=0.4)
+            ax3.set_title('one-hot encoded mask blended with input image with 0.4 coeff')
+            ax4.imshow(np.transpose(img[jj], (1, 2, 0)))
+            ax4.set_title('input image')
             plt.show()
-            k = 5
 
         if ii == 1:
             print("image shape: ", img.shape)

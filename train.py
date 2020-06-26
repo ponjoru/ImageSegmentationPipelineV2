@@ -16,6 +16,7 @@ from losses.custom_loss import CustomLoss
 class Trainer(object):
     def __init__(self, settings: dict):
         self.settings = settings
+        self.settings_to_log = settings_to_log
 
         self.threshold = self.settings['threshold']
         self.start_epoch = self.settings['start_epoch']

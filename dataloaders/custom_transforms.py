@@ -3,6 +3,23 @@ import random
 import numpy as np
 from PIL.Image import Image
 import torchvision.transforms as tr
+import torchvision.transforms.functional as G
+
+
+def denormalize_image(tensor: torch.Tensor, mean, std):
+    for t, m, s in zip(tensor, mean, std):
+        t.mul_(s).add_(m)
+        # The normalize code -> t.sub_(m).div_(s)
+    return tensor.clamp(0, 1)
+
+
+class OneOf(object):
+    def __init__(self, *transforms_list):
+        self.transforms = transforms_list
+
+    def __call__(self, sample):
+        aug = random.choice(self.transforms)
+        return aug(sample)
 
 
 class RandomGaussianNoise(object):

@@ -12,13 +12,12 @@ def create_canvas(nrows, ncols, a, b, image_size, dpi=150):
     return fig, axes
 
 
-def tensors_to_numpy(*tensors, cuda=False):
+def tensors_to_numpy(*tensors):
     res = []
-    if cuda:
-        for tensor in tensors:
+    for tensor in tensors:
+        if tensor.is_cuda:
             res.append(tensor.cpu().detach().numpy())
-    else:
-        for tensor in tensors:
+        else:
             res.append(tensor.detach().numpy())
     return res
 

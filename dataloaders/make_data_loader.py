@@ -19,7 +19,7 @@ def make_data_loader(settings, **kwargs):
     train_drop_last = len(train_set) % batch_size == 1
 
     train_loader = DataLoader(train_set, batch_size=batch_size, drop_last=train_drop_last, shuffle=True, **kwargs)
-    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, **kwargs)
+    val_loader = DataLoader(val_set, batch_size=settings['val_batch_size'], shuffle=False, **kwargs)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False, **kwargs)
 
     loaders = {

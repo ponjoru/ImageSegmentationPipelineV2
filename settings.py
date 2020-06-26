@@ -35,11 +35,14 @@ def define_settings():
         'check_suffix':         'test_run',
 
         # --------------- Dataset settings ---------------
-        'batch_size':           3,
+        'batch_size':           6,
+        'val_batch_size':       6,
         'dataset':              'cityscapes',
         'base_size':            (1024, 2048),
-        'target_size':          (512, 1024),
+        'target_size':          (768, 768),
         'crop_params':          {'left': 0, 'right': 1, 'upper': 0, 'lower': 1},
+        'rnd_crop_size':        (768, 768),
+        'normalize_params':     {'mean': [0.485, 0.456, 0.406], 'std': [0.229, 0.224, 0.225]},
         'valid_classes':        None,
         'segmentation_mode':    'multiclass',
         'binary_color':         (255, 255, 0),
