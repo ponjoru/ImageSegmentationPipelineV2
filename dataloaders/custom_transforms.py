@@ -74,6 +74,79 @@ class Crop(object):
         return sample
 
 
+class RandomCrop(object):
+    def __init__(self, size, padding=0, pad_if_needed=False, apply_to=None):
+        if isinstance(size, int):
+            self.size = (int(size), int(size))
+        else:
+            self.size = size
+        self.padding = padding
+        self.pad_if_needed = pad_if_needed
+        self.apply_to = apply_to
+
+    @staticmethod
+    def get_params(img, output_size):
+        """Get parameters for ``crop`` for a random crop.
+        Args:
+            img (PIL Image): Image to be cropped.
+            output_size (tuple): Expected output size of the crop.
+        Returns:
+            tuple: params (i, j, h, w) to be passed to ``crop`` for random crop.
+        """
+        w, h = img.size
+        th, tw = output_size
+        if w == tw and h == th:
+            return 0, 0, h, w
+
+        i = random.randint(0, h - th)
+        j = random.randint(0, w - tw)
+        return i, j, th, tw
+
+    def __call__(self, sample):
+        """
+        Args:
+            img (PIL Image): Image to be cropped.
+            lbl (PIL Image): Label to be cropped.
+        Returns:
+            PIL Image: Cropped image.
+            PIL Image: Cropped label.
+        """
+        # assert img.size == lbl.size, 'size of img and lbl should be the same. %s, %s'%(img.size, lbl.size)
+        # if self.padding > 0:
+        #     img = F.pad(img, self.padding)
+        #     lbl = F.pad(lbl, self.padding)
+        #
+        # # pad the width if needed
+        # if self.pad_if_needed and img.size[0] < self.size[1]:
+        #     img = G.pad(img, padding=int((1 + self.size[1] - img.size[0]) / 2))
+        #     lbl = G.pad(lbl, padding=int((1 + self.size[1] - lbl.size[0]) / 2))
+        #
+        # # pad the height if needed
+        # if self.pad_if_needed and img.size[1] < self.size[0]:
+        #     img = G.pad(img, padding=int((1 + self.size[0] - img.size[1]) / 2))
+        #     lbl = G.pad(lbl, padding=int((1 + self.size[0] - lbl.size[1]) / 2))
+
+        img = sample['image']
+        i, j, h, w = self.get_params(img, self.size)
+        keys = self.apply_to if self.apply_to else sample.keys()
+        for key in keys:
+            if key not in sample.keys():
+                raise NotImplementedError
+            item = sample[key]
+            if isinstance(item, Image):
+                sample[key] = G.crop(item, i, j, h, w)
+            elif isinstance(item, (np.ndarray, np.generic)):
+                sample[key] = sample[key][:, int(i):int(h + i), int(j):int(w + j)]
+            elif isinstance(item, str):
+                pass
+            else:
+                raise NotImplementedError(type(item) + ' is not supported')
+        return sample
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(size={0}, padding={1})'.format(self.size, self.padding)
+
+
 class Resize(object):
     def __init__(self, size, apply_to=None):
         self.size = size

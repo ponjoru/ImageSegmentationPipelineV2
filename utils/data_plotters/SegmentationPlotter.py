@@ -54,7 +54,7 @@ class SegmentationPlotter:
             mask[zeros] = 255
         return self._standard_encoding_mask_to_rgb(mask, threshold=threshold)
 
-    def plot_result(self, _img, _target, _ground_truth, alpha=0.4, threshold=None, show=False, save=False, img_name=None):
+    def plot_result(self, _img, _target, _ground_truth, alpha=0.4, threshold=None, show=False):
         """
         Builds 2 subplots with: img covered by target with alpha, img covered by ground_truth with alpha
         :param _img: np.array(3,W,H)
@@ -63,8 +63,6 @@ class SegmentationPlotter:
         :param alpha: the alpha blending value, between 0 (transparent) and 1 (opaque) (default: 0.4)
         :param threshold: threshold for binary segmentation (target = 1 if target >= threshold else 0) (default: None)
         :param show: whether to show the image (default: False)
-        :param save: whether to save the image (default: False)
-        :param img_name: image name to save with (default: None (timestamp))
         :return:
         """
         fig, (ax_target, ax_ground_truth) = create_canvas(nrows=1, ncols=2, a=1.3, b=2.5, image_size=_img.shape[1:])
@@ -72,11 +70,6 @@ class SegmentationPlotter:
         ax_ground_truth.set_title('Ground truth')
         self.plot_inference(ax_target, _img, _target, threshold=threshold)
         self.plot_ground_truth(ax_ground_truth, _img, _ground_truth, alpha=alpha)
-        if save:
-            if img_name is None:
-                img_name = str(time.strftime("%Y%m%d-%H%M%S"))
-            img_name = os.path.join('./results', img_name)
-            fig.savefig(img_name, dpi=fig.dpi)
         if show:
             fig.show()
         return fig
