@@ -5,6 +5,21 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 
+def metrics2str(metrics_dict: dict):
+    res_str = ''
+    for key in metrics_dict.keys():
+        res_str += '{:13s}'.format(key)
+        # TODO: refactor
+        if key in ['iou', 'dice']:
+            res_str += ': [mean: %.4f; ' % metrics_dict[key].mean()
+            for id, item in enumerate(metrics_dict[key]):
+                res_str += '%i: %.4f ' % (id, item)
+            res_str += ']\n'
+        else:
+            res_str += ': %.4f\n' % (metrics_dict[key])
+    return res_str
+
+
 def create_canvas(nrows, ncols, a, b, image_size, dpi=150):
     h, w = image_size
     fig_size = b * w / float(dpi), a * h / float(dpi)

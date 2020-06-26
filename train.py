@@ -5,16 +5,17 @@ from tqdm import tqdm
 from dataloaders.make_data_loader import make_data_loader
 from models.deeplabv3plus import DeepLabv3_plus
 from settings import define_settings
-from loggers.checkpoint_saver import CheckpointSaver
+from loggers.main_logger import MainLogger
 from utils.optimizer import define_optimizer
 from utils.lr_scheduler import LRScheduler
 from utils.evaluator import Evaluator
 from utils.utils_test import tensors_to_numpy
 from losses.custom_loss import CustomLoss
+from dataloaders.custom_transforms import denormalize_image
 
 
 class Trainer(object):
-    def __init__(self, settings: dict):
+    def __init__(self, settings: dict, settings_to_log: list):
         self.settings = settings
         self.settings_to_log = settings_to_log
 
@@ -46,11 +47,12 @@ class Trainer(object):
             self.lr_scheduler = LRScheduler(self.settings['lr_scheduler'], self.optimizer, self.batch_size)
 
         # -------------------- Define loss -------------------------------------
-        self.criterion = CustomLoss(ignore_index=self.ignore_index, reduction=self.loss_reduction)
+        input_size = (self.batch_size, self.nclass, *self.settings['target_size'])
+        self.criterion = CustomLoss(input_size=input_size, ignore_index=self.ignore_index, reduction=self.loss_reduction, delay=100)
 
-        self.evaluator = Evaluator(metrics=self.settings['metrics'], num_class=self.nclass, threshold=self.settings['threshold'], cuda=self.cuda)
-        self.saver = CheckpointSaver(settings=settings, keywords_to_save=settings, max_id=10)
+        self.evaluator = Evaluator(metrics=self.settings['metrics'], num_class=self.nclass, threshold=self.settings['threshold'])
 
+        self.logger = MainLogger(loggers=self.settings['loggers'], settings=settings, settings_to_log=settings_to_log)
         if self.settings['resume']:
             self.resume_checkpoint(self.settings['resume'])
 
@@ -82,9 +84,9 @@ class Trainer(object):
             self.evaluator.add_batch(output, target)
             tbar.set_description('Train loss: %.4f, Epoch: %d' % (train_loss / float(i + 1), epoch))
 
-            if i == 10:
-                break
-        metrics_dict = self.evaluator.eval_metrics(reduction=self.settings['evaluator_reduction'], show=True)
+            self.logger.log_metric(metric_tuple=('TRAIN_LOSS', (train_loss / float(i + 1))))
+
+        _ = self.evaluator.eval_metrics(reduction=self.settings['evaluator_reduction'], show=True)
 
     def validation(self, epoch: int):
         """
@@ -105,41 +107,41 @@ class Trainer(object):
             with torch.no_grad():
                 output = self.model(img)
 
-            loss = self.criterion.val_loss(input=output, target=target, epoch=epoch)
-            test_loss += loss.item()
+                loss = self.criterion.val_loss(input=output, target=target, epoch=epoch)
+                test_loss += loss.item()
 
-            output = self.activation(output)
-            self.evaluator.add_batch(output, target)
-            tbar.set_description('Validation loss: %.3f, Epoch: %d' % (test_loss / (i + 1), epoch))
+                output = self.activation(output)
+                self.evaluator.add_batch(output, target)
+                tbar.set_description('Validation loss: %.3f, Epoch: %d' % (test_loss / (i + 1), epoch))
 
-            self.plot_and_log_result(epoch=epoch, sample=sample, output=output)
+                if self.settings['log_artifacts']:
+                    self.log_artifacts(epoch=epoch, sample=sample, output=output)
+
+                self.logger.log_metric(metric_tuple=('VAL_LOSS', test_loss / (i + 1)))
         metrics_dict = self.evaluator.eval_metrics(reduction=self.settings['evaluator_reduction'], show=True)
-        self.save_checkpoint(epoch=epoch, key_metric=metrics_dict[self.settings['metric_to_watch']].mean())
+        self.save_checkpoint(epoch=epoch, metrics_dict=metrics_dict)
 
-    def activation(self, output):
-        if self.nclass == 1:
-            output = torch.sigmoid(output)
-        else:
-            output = torch.softmax(output, dim=1)
-        return output
-
-    def save_checkpoint(self, epoch, key_metric):
+    def save_checkpoint(self, epoch, metrics_dict):
+        key_metric = metrics_dict[self.settings['metric_to_watch']].mean()
         state = {
             'epoch': epoch + 1,
             'state_dict': self.model.module.state_dict() if self.cuda else self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-            'metrics': {None},
+            'metrics': metrics_dict,
         }
-        self.saver.save_checkpoint(state, key_metric=key_metric, filename=self.settings['check_suffix'])
+        self.logger.log_metrics(self.settings['metrics'], metrics_dict, epoch=epoch)
+        self.logger.log_checkpoint(state, key_metric=key_metric, filename=self.settings['check_suffix'])
 
-    def plot_and_log_result(self, epoch, sample, output):
-        if epoch % self.settings['log_dilate'] == 0 or epoch == (self.settings['epochs'] - 1):
-            image, target, output = tensors_to_numpy(sample['image'], sample['label'], output, cuda=self.cuda)
+    def log_artifacts(self, sample, output, epoch):
+        last_epoch = epoch == (self.settings['epochs'] - 1)
+        if epoch % self.settings['log_dilate'] == 0 or last_epoch:
+            sample['image'] = denormalize_image(sample['image'], **self.settings['normalize_params'])
+            image, target, output = tensors_to_numpy(sample['image'], sample['label'], output)
             for ind, value in enumerate(sample['id']):
                 if value in self.settings['inputs_to_watch']:
                     fig = self.plotter(image[ind], output[ind], target[ind],
-                                       alpha=0.4, threshold=self.threshold, show=self.settings['show_results'],
-                                       save=self.settings['save_pict'], img_name=value)
+                                       alpha=0.4, threshold=self.threshold, show=self.settings['show_results'])
+                    self.logger.log_artifact(artifact=fig, epoch=epoch, name=value.replace('_leftImg8bit', ''))
 
     def resume_checkpoint(self, resume):
         if not os.path.isfile(resume):
@@ -153,21 +155,21 @@ class Trainer(object):
         if not self.settings['fine_tuning']:
             self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.best_pred = checkpoint['best_pred']
-        print("=> loaded checkpoint '{}' (epoch {})"
-              .format(resume, checkpoint['epoch']))
+        print("=> loaded checkpoint '{}' (epoch: {}, best_metric: {.4f})"
+              .format(resume, checkpoint['epoch'], self.best_pred))
 
 
 def main():
     # define run settings
     settings, settings_to_log = define_settings()
-    trainer = Trainer(settings)
+    trainer = Trainer(settings, settings_to_log)
 
     print('Starting Epoch: ', trainer.start_epoch, '; ', 'Total Epochs: ', trainer.epochs)
     for epoch in range(trainer.start_epoch, trainer.epochs):
         print('\n ------------------------------------ EPOCH %d ------------------------------------ ' % epoch)
         trainer.training(epoch)
         trainer.validation(epoch)
-    trainer.saver.rename_best_checkpoint(filename='best')
+    trainer.logger.close()
 
 
 if __name__ == "__main__":
