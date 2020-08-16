@@ -36,8 +36,6 @@ class SoftDiceLoss(nn.Module):
         smooth = 1e-4
 
         dice_loss = 1 - F.soft_dice_index(input, target, smooth)
-        if self.classes:
-            dice_loss = dice_loss[self.classes]
 
         if self.reduction == 'sum':
             return dice_loss.sum()

@@ -62,22 +62,51 @@ def soft_jaccard_index(input: torch.Tensor, target: torch.Tensor, smooth=1e-8):
     return jaccard_index
 
 
-def focal_loss(input: torch.Tensor, target: torch.Tensor, threshold=0.5, alpha=None, gamma=2, class_weight=None):
+def binary_focal_loss(input: torch.Tensor, target: torch.Tensor, threshold=0.5, alpha=0.25, gamma=2):
+    # input = input.squeeze(dim=1)
+    logpt = F.binary_cross_entropy_with_logits(input, target, reduction="none")
+    pt = torch.exp(-logpt)
+
+    # compute the loss
+    if threshold is None:
+        focal_term = (1 - pt).pow(gamma)
+    else:
+        focal_term = ((1.0 - pt) / threshold).pow(gamma)
+        focal_term[pt < threshold] = 1
+
+    loss = focal_term * logpt
+
+    if alpha:
+        alpha = (alpha * target + (1 - alpha) * (1 - target))
+        loss = loss * alpha
+    return loss
+
+def focal_loss(input: torch.Tensor, target: torch.Tensor, threshold=0.5, alpha=None, gamma=2):
+    b, c, h, w = input.size()
+    with torch.no_grad():
+        one_hot = torch.zeros(input.size())
+        one_hot = one_hot.to(input.device)
+        one_hot.scatter_(dim=1, index=target.unsqueeze(1), value=1.0)
+    loss = 0.0
+    for cls in range(c):
+        if alpha is not None:
+            a = alpha[cls]
+        else:
+            a = alpha
+        loss += binary_focal_loss(input[:,cls], one_hot[:,cls], alpha=a, gamma=gamma, threshold=threshold)
+    return loss
+
+def focal_loss_v2(input: torch.Tensor, target: torch.Tensor, threshold=0.5, gamma=2, class_weight=None):
     """
     Focal segmentation loss (https://arxiv.org/abs/1708.02002)
-    :param input: Tensor(B,1,H,W)
+    :param input: Tensor(B,C,H,W)
     :param target: Tensor(B,H,W)
     :param threshold: float threshold (default: 0.5)
     :param alpha: weight of positive examples (default: None)
     :param gamma: int, gamma parameter of loss function (default: 2)
     :return: scalar
     """
-    b, c, w, h = input.size()
-    if c == 1:
-        input = input.squeeze(dim=1)
-        logpt = -F.binary_cross_entropy_with_logits(input, target, reduction="none", pos_weight=class_weight)
-    else:
-        logpt = -F.cross_entropy(input, target, reduction="none", weight=class_weight)
+    logpt = -F.cross_entropy(input, target, reduction="none", weight=class_weight)
     pt = torch.exp(logpt)
     # compute the loss
     if threshold is None:
@@ -87,9 +116,6 @@ def focal_loss(input: torch.Tensor, target: torch.Tensor, threshold=0.5, alpha=N
         focal_term[pt < threshold] = 1
 
     loss = -focal_term * logpt
-
-    if alpha is not None:
-        loss = loss * (alpha * target + (1 - alpha) * (1 - target))
 
     return loss
 

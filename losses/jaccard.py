@@ -20,9 +20,9 @@ class SoftJaccardLoss(nn.Module):
     def forward(self, input: torch.Tensor, target: torch.Tensor):
         """
 
-        :param input: NxCxHxW
-        :param target: NxHxW
-        :return: scalar
+        :param input: [NxCxHxW]
+        :param target: [NxHxW]
+        :return scalar
         """
         b, c, w, h = input.size()
 
@@ -35,8 +35,6 @@ class SoftJaccardLoss(nn.Module):
         smooth = 1e-4
 
         iou_loss = 1 - F.soft_jaccard_index(input, target, smooth)
-        if self.classes:
-            iou_loss = iou_loss[self.classes]
 
         if self.reduction == 'sum':
             return iou_loss.sum()
