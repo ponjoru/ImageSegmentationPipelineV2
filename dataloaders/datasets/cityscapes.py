@@ -4,8 +4,10 @@ from PIL import Image
 from mypath import Path
 from torchvision import transforms
 import dataloaders.custom_transforms as ctr
-from utils.utils_test import recursive_glob, one_hot_encode
+from utils._utils import recursive_glob, one_hot_encode, alb_transform_wrapper
 from dataloaders.label_creator import label_creator
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 
 class CityscapesSegmentation(ISDatasetTemplate):
@@ -91,7 +93,7 @@ class CityscapesSegmentation(ISDatasetTemplate):
         self.files[split] = recursive_glob(rootdir=self.annotations_base, suffix='_labelIds.png')
 
         self.transformations = {
-            'train': self.transform_tr,
+            'train': self.transform_tr,  # self.alb_transform_tr,
             'val': self.transform_val,
             'test': self.transform_ts,
         }
@@ -107,8 +109,6 @@ class CityscapesSegmentation(ISDatasetTemplate):
         return len(self.files[self.split])
 
     def __getitem__(self, index):
-        transform = self.transformations[self.split]
-
         lbl_path = self.files[self.split][index].rstrip()
         img_path = lbl_path.replace('gtFine_labelIds', 'leftImg8bit')
         img_path = img_path.replace('gtFine', 'leftImg8bit')
@@ -120,7 +120,25 @@ class CityscapesSegmentation(ISDatasetTemplate):
         sample = {'image': _img,
                   'label': _target,
                   'id': os.path.basename(img_path)}
+
         return transform(sample)
+
+    def alb_transform_tr(self, sample: dict):
+        alb_transforms = A.Compose([
+            A.RandomBrightnessContrast(p=0.3),
+            A.HueSaturationValue(p=0.3),
+            A.HorizontalFlip(p=0.5),
+            A.GaussNoise(p=0.3),
+            A.Resize(*self.settings['target_size']),
+            # A.ShiftScaleRotate(shift_limit=0, scale_limit=0, rotate_limit=45, p=0.3),
+            A.OneOf([
+                A.Blur(blur_limit=3),
+                A.MedianBlur(blur_limit=3),
+            ], p=0.3),
+            A.Normalize(**self.settings['normalize_params']),
+            ToTensorV2(),
+        ], additional_targets={'label': 'mask'})
+        return alb_transform_wrapper(alb_transforms, sample)
 
     def transform_tr(self, sample: dict):
         sample_transforms = transforms.Compose([
@@ -153,7 +171,7 @@ if __name__ == '__main__':
     import numpy as np
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
-    from utils.utils_test import create_canvas
+    from utils._utils import create_canvas
     from dataloaders.custom_transforms import denormalize_image
 
     settings = {

@@ -1,10 +1,10 @@
-from dataloaders.datasets import cityscapes
+from dataloaders import CityscapesSegmentation
 from torch.utils.data import DataLoader
 
 
 def make_data_loader(settings, **kwargs):
     datasets = {
-        'cityscapes': cityscapes.CityscapesSegmentation,
+        'cityscapes': CityscapesSegmentation,
     }
     if settings['dataset'] not in datasets:
         raise NotImplementedError
