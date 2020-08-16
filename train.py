@@ -34,12 +34,7 @@ class Trainer(object):
         self.train_loader, self.val_loader, self.test_loader = [loaders[key] for key in ['train', 'val', 'test']]
 
         # -------------------- Define model ------------------------------------
-        self.model = DeepLabv3_plus(nInputChannels=3, n_classes=self.nclass, pretrained=True)
-
-        # -------------------- Moving to GPU -----------------------------------
-        if self.cuda:
-            self.model = torch.nn.DataParallel(self.model)
-            self.model = self.model.cuda()
+        self.model = get_model(self.settings)
 
         # -------------------- Define optimizer and its options ----------------
         self.optimizer = define_optimizer(self.model, self.settings['optimizer'], self.settings['optimizer_params'])
