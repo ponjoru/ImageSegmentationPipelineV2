@@ -9,14 +9,14 @@ def metrics2str(metrics_dict: dict):
     res_str = ''
     for key in metrics_dict.keys():
         res_str += '{:13s}'.format(key)
-        # TODO: refactor
-        if key in ['iou', 'dice']:
-            res_str += ': [mean: %.4f; ' % metrics_dict[key].mean()
-            for id, item in enumerate(metrics_dict[key]):
+        data = metrics_dict[key]
+        if isinstance(data, (list, np.ndarray)) and len(data) > 1:
+            res_str += ': { mean: %.4f; ' % data.mean()
+            for id, item in enumerate(data):
                 res_str += '%i: %.4f ' % (id, item)
-            res_str += ']\n'
+            res_str += '}\n'
         else:
-            res_str += ': %.4f\n' % (metrics_dict[key])
+            res_str += ': %.4f\n' % (data)
     return res_str
 
 
@@ -69,6 +69,19 @@ def one_hot_encode(input, num_classes):
                 new_input[i, j][input[i] == j] = 1
 
     return new_input
+
+
+def pil2cv(sample):
+    sample['image'] = np.array(sample['image'])[:, :, ::-1]
+    sample['label'] = np.array(sample['label'])
+    return sample
+
+
+def alb_transform_wrapper(transform, sample):
+    sample = pil2cv(sample)
+    sample = transform(**sample)
+    sample['label'] = sample['label'].squeeze()
+    return sample
 
 
 def hex_to_rgb(value):

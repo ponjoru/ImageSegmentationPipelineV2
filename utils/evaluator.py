@@ -1,6 +1,6 @@
 import numpy as np
 import losses.functional as F
-from utils.utils_test import tensors_to_numpy, metrics2str
+from utils._utils import tensors_to_numpy, metrics2str
 
 
 class Evaluator(object):

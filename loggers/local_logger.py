@@ -19,7 +19,7 @@ class LocalLogger(LoggerTemplate):
 
         self.directory = os.path.join('run', self.dataset)
         self.runs = sorted(glob.glob(os.path.join(self.directory, 'experiment_*')))
-        run_id = int(self.runs[-1].split('_')[-1]) + 1 if self.runs else 0
+        run_id = int(self.runs[-1].split('_')[-1][0]) + 1 if self.runs else 0
         run_id = min(run_id, max_id)
 
         self.experiment_dir = os.path.join(self.directory, 'experiment_{}'.format(str(run_id)))

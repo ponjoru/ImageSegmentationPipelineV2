@@ -9,7 +9,7 @@ from loggers.main_logger import MainLogger
 from utils.optimizer import define_optimizer
 from utils.lr_scheduler import LRScheduler
 from utils.evaluator import Evaluator
-from utils.utils_test import tensors_to_numpy
+from utils._utils import tensors_to_numpy, plot_confusion_matrix
 from losses.custom_loss import CustomLoss
 from dataloaders.custom_transforms import denormalize_image
 

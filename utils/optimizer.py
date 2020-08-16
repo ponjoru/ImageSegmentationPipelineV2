@@ -15,6 +15,8 @@ def define_optimizer(model: nn.Module, opt_name: str, opt_params: dict = None):
         param_list = module.get_params()
     else:
         param_list = module.params()
+    if all([len(group['params']) == 0 for group in param_list]):
+        raise Warning('No model parameters found')
 
     optimizers = {
         'sgd': SGD,

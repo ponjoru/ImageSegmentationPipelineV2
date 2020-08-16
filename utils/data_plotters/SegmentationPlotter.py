@@ -2,7 +2,7 @@ import os
 import time
 import numpy as np
 from matplotlib.axes import Axes
-from utils.utils_test import create_canvas
+from utils._utils import create_canvas
 
 
 class SegmentationPlotter:
