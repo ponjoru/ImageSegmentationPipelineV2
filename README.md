@@ -18,19 +18,16 @@ PyTorch. \
 The main features included:
 1. Multiclass and binary segmentation pipeline
 2. Different losses included s.t.: SoftJaccardLoss(Intersection over union loss), SoftDiceLoss (F1 loss), 
-Lovasz loss, Online Hard Example Mining CrossEntropy Loss, Focal Loss.
+Lovasz loss, Online Hard Example Mining CrossEntropy Loss, Balanced Multiclass Focal Loss, Label Smoothing Loss.
 4. Easy to use API for extending the pipeline by adding custom models, modules, backbones, datasets and loggers
 5. Evaluator with supported metrics: IoU, Dice, Frequently weighted IoU, Accuracy, Precision, Recall (mean and per-class)
 5. Saving checkpoints and artifacts with multiple Loggers: Local, MlFlow
+6. MixUp and CutMix
+
 
 TODO:
-1. Add Label Smoothing
-2. Add class weights calculation over a dataset, extend and all losses with weights
-3. Add MixUp support
-4. Add model zoo API
-5. Add fp16 training mode
-6. Test MlFlow logger, add Tensorboard
-7. Replace custom transforms with albumentations lib
+1. Support fp16 training mode
+2. Test MlFlow logger, add Tensorboard
 
 
 ## Getting started
