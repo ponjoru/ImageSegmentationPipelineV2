@@ -28,7 +28,7 @@ def define_settings():
         'show_results':         False,
         'log_artifacts':        True,
         'fine_tuning':          False,      # if True optimizer and scheduler are reinitialized, otherwise their states are loaded from the checkpoint
-        'resume':               '/home/user/rzd/ImageV2/run/cityscapes/experiment_0@0_4609_10epochs/bisenetv1_checkpoint.pth.tar',       # path to the checkpoint
+        'resume':               None,       # path to the checkpoint
         'fp16':                 False,
         'loggers':              ['local'],      # local, mlflow
         'MixUp':                False,
