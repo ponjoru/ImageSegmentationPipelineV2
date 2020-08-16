@@ -12,6 +12,7 @@ from utils.evaluator import Evaluator
 from utils._utils import tensors_to_numpy, plot_confusion_matrix
 from losses.custom_loss import CustomLoss
 from dataloaders.custom_transforms import denormalize_image
+from utils.mix_regularization import random_joint_mix, mix_criterion
 
 
 class Trainer(object):
@@ -58,6 +59,13 @@ class Trainer(object):
             output = torch.softmax(output, dim=1)
         return output
 
+    def prepare_inputs(self, *inputs):
+        if self.settings['cuda']:
+            inputs = [i.cuda() for i in inputs]
+        if self.settings['fp16']:
+            inputs = [i.half() for i in inputs]
+        return inputs
+
     def training(self, epoch: int):
         """
         Training loop for a certain epoch
@@ -68,22 +76,27 @@ class Trainer(object):
         self.model.train()
         tbar = tqdm(self.train_loader, desc='train', file=sys.stdout)
         train_loss = 0.0
-
+        output = {}
         for i, sample in enumerate(tbar):
-            img, target = sample['image'], sample['label']
-            if self.cuda:
-                img, target = img.cuda(), target.cuda()
+            img, target = self.prepare_inputs(sample['image'], sample['label'])
+            img, target, perm_target, gamma = random_joint_mix(img, target, self.settings['CutMix'], self.settings['MixUp'], p=self.settings['MixP'])
 
             self.optimizer.zero_grad()
-            output = self.model(img)
+            output['pred'], output['pred8'], output['pred16'] = self.model(img)
 
-            loss = self.criterion.train_loss(input=output, target=target, epoch=epoch)
+            if self.settings['MixUp'] or self.settings['CutMix']:
+                loss = mix_criterion(self.criterion.train_loss, output, tgt_a=target, tgt_b=perm_target, gamma=gamma)
+            else:
+                loss = self.criterion.train_loss(**output, target=target)
             loss.backward()
             self.optimizer.step()
             train_loss += loss.item()
 
-            output = self.activation(output)
-            self.evaluator.add_batch(output, target)
+            if self.settings['lr_scheduler']:
+                self.lr_scheduler(i, epoch, self.metric_to_watch)
+
+            out = self.activation(output['pred'])
+            self.evaluator.add_batch(out, target)
             tbar.set_description('Train loss: %.4f, Epoch: %d' % (train_loss / float(i + 1), epoch))
 
             self.logger.log_metric(metric_tuple=('TRAIN_LOSS', (train_loss / float(i + 1))))
@@ -102,8 +115,7 @@ class Trainer(object):
         test_loss = 0.0
         with torch.no_grad():
             for i, sample in enumerate(tbar):
-                if self.cuda:
-                    img, target = img.cuda(), target.cuda()
+                img, target = self.prepare_inputs(sample['image'], sample['label'])
 
             with torch.no_grad():
                 output = self.model(img)
