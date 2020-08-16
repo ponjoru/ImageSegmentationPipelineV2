@@ -4,9 +4,10 @@ import torch
 def define_settings():
     settings = {
         # --------------- Global settings ----------------
+        'validation_only':      False,  # OneOf('val', 'test', 'train', False) - runs only validation
         'threshold':            0.5,
         'start_epoch':          0,
-        'epochs':               2,
+        'epochs':               40,
         'seed':                 1,
         'cuda':                 True,
         'loss_reduction':       'mean',
@@ -15,7 +16,7 @@ def define_settings():
         'optimizer_params':     None,
         'lr_scheduler':         None,  # 'multistep', 'exponential', 'reduceOnPlateau', 'cyclic'
         'scheduler_params':     None,
-        'metrics':              ['iou', 'dice', 'fwiou'],
+        'metrics':              ['iou', 'dice'],
         'metric_to_watch':      'iou',
         'log_dilate':           1,
         'inputs_to_watch':      ['frankfurt_000001_013016_leftImg8bit.png', 'frankfurt_000001_029086_leftImg8bit.png',
@@ -26,13 +27,17 @@ def define_settings():
                                  'frankfurt_000001_068208_leftImg8bit.png'],
         'show_results':         False,
         'log_artifacts':        True,
-        'fine_tuning':          False,
-        'resume':               None,
+        'fine_tuning':          False,      # if True optimizer and scheduler are reinitialized, otherwise their states are loaded from the checkpoint
+        'resume':               '/home/user/rzd/ImageV2/run/cityscapes/experiment_0@0_4609_10epochs/bisenetv1_checkpoint.pth.tar',       # path to the checkpoint
+        'fp16':                 False,
         'loggers':              ['local'],      # local, mlflow
+        'MixUp':                False,
+        'CutMix':               False,
+        'MixP':                 0.5,  # if MixUp and CutMix = True, with probability p chooses MixUp, and 1-p - CutMix for a batch
 
         # ----------------- ANN settings -----------------
-        'model_name':           'DeepLabV3+',
-        'backbone_name':        'resnet18',
+        'model_name':           'BiSeNetV1',
+        'model_kwargs':         {'n_classes': 19},
         'check_suffix':         'test_run',
         'comments':             'first run',
         'freeze_backbone':      False,
@@ -50,9 +55,9 @@ def define_settings():
         'segmentation_mode':    'multiclass',
         'binary_color':         (255, 255, 0),
         'ignore_index':         255,
-        'workers': 0,
+        'workers':              10,
     }
-    # list of common settings that should be logged to the local files and mlflow
+    # list of common settings that should be logged
     settings_to_log = settings.keys()
 
     # check if cuda is available

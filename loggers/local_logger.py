@@ -3,7 +3,7 @@ import os
 import glob
 import shutil
 import torch
-from utils.utils_test import metrics2str
+from utils._utils import metrics2str
 
 
 class LocalLogger(LoggerTemplate):
@@ -91,6 +91,7 @@ class LocalLogger(LoggerTemplate):
 
     def close(self):
         self.rename_best_checkpoint(filename='best')
+        self.rename_experiment_dir()
 
     def rename_best_checkpoint(self, filename='best_checkpoint'):
         metric = '{:1.4f}'.format(self.best_metric).replace('.', '_')
@@ -98,3 +99,8 @@ class LocalLogger(LoggerTemplate):
         dst = os.path.join(self.experiment_dir, self.settings['dataset'] + '_' + self.filename + '@' + metric + '_' + filename + '.pth.tar')
         os.rename(src, dst)
 
+    def rename_experiment_dir(self):
+        metric = '{:1.4f}'.format(self.best_metric).replace('.', '_')
+        src = self.experiment_dir
+        dst = src + '@' + metric + '_' + str(self.settings['epochs']) + 'epochs'
+        os.rename(src, dst)
